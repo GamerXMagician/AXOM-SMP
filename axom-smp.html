@@ -1,0 +1,1246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>AXOM SMP — Survive. Fight. Build. Conquer.</title>
+<meta name="description" content="AXOM SMP — a Minecraft Lifesteal Survival server. Apply for whitelist at axomsmp.ice.lol" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<style>
+  /* ============================================================
+     AXOM SMP — DESIGN TOKENS
+     Palette:
+       --bg:        #05080b   (void black, base canvas)
+       --bg-2:      #0a0f14   (panel black)
+       --bg-3:      #0e151b   (raised panel)
+       --line:      rgba(120,200,220,0.12)
+       --cyan:      #33e5ff   (primary glow — "frost/ice" accent, nods to .ice.lol domain)
+       --blue:      #4d7fff   (secondary glow)
+       --heart:     #ff3d5e   (lifesteal signature accent — used sparingly)
+       --heart-glow:#ff6f8c
+       --ink:       #e9f4f7   (primary text)
+       --ink-dim:   #9db2bb   (secondary text)
+       --ink-faint: #5e737c   (tertiary text)
+     Type:
+       Display / headings: 'Chakra Petch' (angular, blocky, gaming-native, not Minecraft's own face)
+       Body: 'Inter'
+       Data / mono (IP, stats, code): 'JetBrains Mono'
+     Signature element: a beating "lifesteal heart" core in the hero — the one mechanic that
+     defines this server — rendered as a low-poly glowing gem-heart on a canvas particle field.
+     ============================================================ */
+
+  :root{
+    --bg:#05080b;
+    --bg-2:#0a0f14;
+    --bg-3:#0e151b;
+    --line: rgba(120,200,220,0.12);
+    --line-strong: rgba(120,200,220,0.22);
+    --cyan:#33e5ff;
+    --cyan-dim: rgba(51,229,255,0.35);
+    --blue:#4d7fff;
+    --heart:#ff3d5e;
+    --heart-glow:#ff6f8c;
+    --ink:#e9f4f7;
+    --ink-dim:#9db2bb;
+    --ink-faint:#5e737c;
+    --radius: 14px;
+    --maxw: 1180px;
+  }
+
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html{scroll-behavior:smooth;}
+  @media (prefers-reduced-motion: reduce){
+    html{scroll-behavior:auto;}
+    *{animation-duration:0.001ms !important; animation-iteration-count:1 !important; transition-duration:0.001ms !important; scroll-behavior:auto !important;}
+  }
+
+  body{
+    background:var(--bg);
+    color:var(--ink);
+    font-family:'Inter', sans-serif;
+    line-height:1.6;
+    overflow-x:hidden;
+    min-height:100vh;
+    position:relative;
+  }
+
+  ::selection{ background:var(--cyan); color:#01151a; }
+
+  h1,h2,h3,h4{
+    font-family:'Chakra Petch', sans-serif;
+    letter-spacing:0.01em;
+    font-weight:700;
+    color:var(--ink);
+  }
+
+  .mono{ font-family:'JetBrains Mono', monospace; }
+
+  a{ color:inherit; text-decoration:none; }
+  button{ font-family:inherit; cursor:pointer; border:none; }
+  input, textarea{ font-family:'Inter', sans-serif; }
+
+  .wrap{
+    max-width:var(--maxw);
+    margin:0 auto;
+    padding:0 24px;
+  }
+
+  /* focus visibility */
+  a:focus-visible, button:focus-visible, input:focus-visible, textarea:focus-visible, [tabindex]:focus-visible{
+    outline:2px solid var(--cyan);
+    outline-offset:3px;
+    border-radius:6px;
+  }
+
+  /* ---------------- background particle canvas ---------------- */
+  #bg-canvas{
+    position:fixed;
+    inset:0;
+    z-index:0;
+    pointer-events:none;
+    opacity:0.55;
+  }
+
+  .grain{
+    position:fixed; inset:0; z-index:1; pointer-events:none;
+    background-image: radial-gradient(circle at 1px 1px, rgba(255,255,255,0.035) 1px, transparent 0);
+    background-size: 3px 3px;
+    mix-blend-mode: overlay;
+  }
+
+  /* ---------------- glass card base ---------------- */
+  .glass{
+    background: linear-gradient(180deg, rgba(20,32,38,0.55), rgba(10,17,20,0.55));
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+  }
+
+  /* ============================================================ NAVBAR */
+  header#navbar{
+    position:fixed; top:0; left:0; right:0; z-index:50;
+    padding:14px 0;
+    transition: background 0.4s ease, border-color 0.4s ease, padding 0.4s ease;
+    border-bottom:1px solid transparent;
+  }
+  header#navbar.scrolled{
+    background:rgba(5,8,11,0.82);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border-bottom:1px solid var(--line);
+    padding:10px 0;
+  }
+  .nav-inner{
+    display:flex; align-items:center; justify-content:space-between; gap:20px;
+  }
+  .brand{
+    display:flex; align-items:center; gap:10px;
+    font-family:'Chakra Petch', sans-serif;
+    font-weight:700; font-size:20px; letter-spacing:0.03em;
+  }
+  .brand-mark{
+    width:32px; height:32px; border-radius:8px;
+    background: linear-gradient(135deg, var(--cyan), var(--blue));
+    display:flex; align-items:center; justify-content:center;
+    box-shadow: 0 0 18px var(--cyan-dim);
+    color:#02151a; font-weight:800; font-size:15px;
+    flex-shrink:0;
+  }
+  .nav-links{ display:flex; align-items:center; gap:30px; }
+  .nav-links a{
+    font-size:14px; color:var(--ink-dim); font-weight:600;
+    position:relative; padding:4px 0; transition:color 0.25s ease;
+  }
+  .nav-links a::after{
+    content:''; position:absolute; left:0; bottom:-2px; width:0; height:2px;
+    background:linear-gradient(90deg, var(--cyan), var(--blue));
+    transition:width 0.25s ease; box-shadow:0 0 8px var(--cyan-dim);
+  }
+  .nav-links a:hover{ color:var(--ink); }
+  .nav-links a:hover::after{ width:100%; }
+
+  .btn{
+    display:inline-flex; align-items:center; justify-content:center; gap:8px;
+    padding:11px 22px; border-radius:9px;
+    font-weight:600; font-size:14px;
+    transition: transform 0.2s ease, box-shadow 0.3s ease, background 0.2s ease, border-color .2s ease;
+    white-space:nowrap;
+  }
+  .btn-primary{
+    background: linear-gradient(135deg, var(--cyan), var(--blue));
+    color:#02151a;
+    box-shadow: 0 0 0 rgba(51,229,255,0);
+  }
+  .btn-primary:hover{ transform:translateY(-2px); box-shadow: 0 6px 26px rgba(51,229,255,0.35); }
+  .btn-ghost{
+    background:rgba(255,255,255,0.03);
+    border:1px solid var(--line-strong);
+    color:var(--ink);
+  }
+  .btn-ghost:hover{ border-color:var(--cyan-dim); background:rgba(51,229,255,0.06); transform:translateY(-2px); }
+  .btn:active{ transform:translateY(0); }
+  .btn[disabled]{ opacity:0.55; cursor:not-allowed; transform:none !important; box-shadow:none !important; }
+
+  .nav-cta{ display:flex; align-items:center; gap:14px; }
+  #hamburger{
+    display:none; background:none; border:none; width:38px; height:38px;
+    flex-direction:column; align-items:center; justify-content:center; gap:5px;
+  }
+  #hamburger span{ width:22px; height:2px; background:var(--ink); display:block; transition: all .3s ease; }
+  #hamburger.open span:nth-child(1){ transform: translateY(7px) rotate(45deg); }
+  #hamburger.open span:nth-child(2){ opacity:0; }
+  #hamburger.open span:nth-child(3){ transform: translateY(-7px) rotate(-45deg); }
+
+  #mobile-menu{
+    display:none;
+    position:fixed; top:0; right:0; bottom:0; width:min(78vw, 320px); z-index:49;
+    background:rgba(7,11,14,0.98); border-left:1px solid var(--line);
+    padding:90px 28px 28px; flex-direction:column; gap:26px;
+    transform:translateX(100%); transition: transform 0.35s cubic-bezier(.22,.9,.32,1);
+  }
+  #mobile-menu.open{ transform:translateX(0); display:flex; }
+  #mobile-menu a{ font-size:17px; font-weight:600; color:var(--ink-dim); }
+  #mobile-menu a:hover{ color:var(--cyan); }
+  #scrim{ display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:48; }
+  #scrim.open{ display:block; }
+
+  /* ============================================================ HERO */
+  #hero{
+    position:relative; min-height:100vh;
+    display:flex; align-items:center; justify-content:center;
+    padding:150px 24px 90px;
+    text-align:center;
+    z-index:2;
+  }
+  .hero-inner{ max-width:820px; margin:0 auto; }
+
+  .eyebrow-pill{
+    display:inline-flex; align-items:center; gap:9px;
+    padding:8px 16px; border-radius:100px;
+    font-family:'JetBrains Mono', monospace; font-size:12.5px; color:var(--ink-dim);
+    margin-bottom:30px;
+  }
+  .status-dot{
+    width:8px; height:8px; border-radius:50%; background:var(--ink-faint);
+    box-shadow:0 0 8px var(--ink-faint);
+    flex-shrink:0;
+  }
+  .status-dot.online{ background:#37e08a; box-shadow:0 0 10px #37e08a; animation: pulseDot 1.8s infinite; }
+  .status-dot.offline{ background:#ff5470; box-shadow:0 0 10px #ff5470; }
+  .status-dot.unknown{ background:#e0c337; box-shadow:0 0 10px #e0c337; animation: pulseDot 2.4s infinite; }
+  @keyframes pulseDot{ 0%,100%{ opacity:1; } 50%{ opacity:0.45; } }
+
+  #hero h1{
+    font-size: clamp(48px, 9vw, 104px);
+    line-height:0.98;
+    letter-spacing:-0.01em;
+    background: linear-gradient(180deg, #ffffff 10%, var(--cyan) 100%);
+    -webkit-background-clip:text; background-clip:text; color:transparent;
+    filter: drop-shadow(0 0 34px rgba(51,229,255,0.25));
+    margin-bottom:20px;
+  }
+
+  .hero-tagline{
+    font-family:'Chakra Petch', sans-serif;
+    font-size: clamp(15px, 2.4vw, 21px);
+    color:var(--ink-dim);
+    font-weight:500;
+    letter-spacing:0.04em;
+    text-transform:uppercase;
+    margin-bottom:34px;
+  }
+  .hero-tagline b{ color:var(--ink); font-weight:600; }
+
+  .ip-row{
+    display:inline-flex; align-items:center; gap:0;
+    margin:0 auto 38px; border-radius:11px;
+    overflow:hidden; border:1px solid var(--line-strong);
+  }
+  .ip-row .ip-text{
+    padding:14px 20px; font-family:'JetBrains Mono', monospace; font-size:16px;
+    color:var(--cyan); background:rgba(51,229,255,0.05); letter-spacing:0.02em;
+  }
+  .ip-row button{
+    padding:14px 18px; background:rgba(255,255,255,0.04); color:var(--ink-dim);
+    font-size:13px; font-weight:600; border-left:1px solid var(--line-strong);
+    transition: background .2s ease, color .2s ease;
+  }
+  .ip-row button:hover{ background:rgba(51,229,255,0.1); color:var(--cyan); }
+
+  .hero-actions{
+    display:flex; flex-wrap:wrap; align-items:center; justify-content:center; gap:14px;
+    margin-bottom:44px;
+  }
+  .hero-actions .btn{ padding:15px 30px; font-size:15px; }
+
+  .hero-owner{
+    font-size:13px; color:var(--ink-faint);
+    display:flex; align-items:center; justify-content:center; gap:8px;
+  }
+  .hero-owner b{ color:var(--ink-dim); font-weight:600; }
+
+  /* signature heart-core */
+  .heart-core{
+    position:absolute; top:64px; left:50%; transform:translateX(-50%);
+    width:150px; height:150px; z-index:1; pointer-events:none;
+    opacity:0.9;
+  }
+  .heart-core svg{ width:100%; height:100%; overflow:visible; }
+  .heart-core .heart-shape{
+    animation: heartbeat 2.15s ease-in-out infinite;
+    transform-origin:center;
+    filter: drop-shadow(0 0 22px var(--heart)) drop-shadow(0 0 46px rgba(255,61,94,0.35));
+  }
+  @keyframes heartbeat{
+    0%, 100%{ transform:scale(1); }
+    14%{ transform:scale(1.14); }
+    28%{ transform:scale(0.98); }
+    42%{ transform:scale(1.09); }
+    70%{ transform:scale(1); }
+  }
+
+  .scroll-cue{
+    position:absolute; bottom:28px; left:50%; transform:translateX(-50%);
+    display:flex; flex-direction:column; align-items:center; gap:8px;
+    color:var(--ink-faint); font-size:11px; letter-spacing:0.15em; text-transform:uppercase;
+    font-family:'JetBrains Mono', monospace;
+    animation: floatCue 2.4s ease-in-out infinite;
+  }
+  @keyframes floatCue{ 0%,100%{ transform:translate(-50%,0);} 50%{ transform:translate(-50%,8px);} }
+  .scroll-cue .stick{ width:1px; height:28px; background:linear-gradient(var(--cyan), transparent); }
+
+  /* ============================================================ SECTION SHELL */
+  section{ position:relative; z-index:2; padding:110px 0; }
+  .section-head{ max-width:640px; margin:0 auto 56px; text-align:center; }
+  .section-eyebrow{
+    font-family:'JetBrains Mono', monospace; font-size:12px; letter-spacing:0.2em;
+    text-transform:uppercase; color:var(--cyan); margin-bottom:14px; display:block;
+  }
+  .section-head h2{ font-size:clamp(30px,4.6vw,44px); margin-bottom:16px; }
+  .section-head p{ color:var(--ink-dim); font-size:16px; }
+
+  .reveal{ opacity:0; transform:translateY(28px); transition: opacity 0.7s ease, transform 0.7s cubic-bezier(.2,.7,.3,1); }
+  .reveal.in{ opacity:1; transform:translateY(0); }
+
+  /* ============================================================ SERVER STATUS CARD */
+  .status-card{
+    max-width:640px; margin:0 auto; padding:34px 36px; text-align:left;
+    display:flex; flex-direction:column; gap:22px;
+  }
+  .status-card-top{ display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap; }
+  .status-card-top h3{ font-size:19px; display:flex; align-items:center; gap:10px; }
+  .status-badge{
+    display:inline-flex; align-items:center; gap:8px;
+    padding:7px 14px; border-radius:100px; font-size:12.5px; font-weight:600;
+    font-family:'JetBrains Mono', monospace; border:1px solid var(--line-strong);
+  }
+  .status-grid{
+    display:grid; grid-template-columns:1fr 1fr; gap:16px;
+  }
+  @media (max-width:520px){ .status-grid{ grid-template-columns:1fr; } }
+  .status-field{
+    background:rgba(255,255,255,0.02); border:1px solid var(--line);
+    border-radius:10px; padding:14px 16px;
+  }
+  .status-field .label{ font-size:11px; text-transform:uppercase; letter-spacing:0.1em; color:var(--ink-faint); margin-bottom:6px; }
+  .status-field .value{ font-family:'JetBrains Mono', monospace; font-size:14.5px; color:var(--ink); }
+  .status-note{
+    font-size:13px; color:var(--ink-faint); line-height:1.6; border-top:1px solid var(--line); padding-top:18px;
+  }
+
+  /* ============================================================ ABOUT */
+  .about-grid{
+    display:grid; grid-template-columns:1.1fr 0.9fr; gap:48px; align-items:center;
+  }
+  @media (max-width:860px){ .about-grid{ grid-template-columns:1fr; } }
+  .about-text p{ color:var(--ink-dim); font-size:16px; margin-bottom:16px; }
+  .about-stats{ display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-top:26px; }
+  .about-stat{ padding:18px; }
+  .about-stat .num{ font-family:'Chakra Petch',sans-serif; font-size:26px; color:var(--cyan); font-weight:700; }
+  .about-stat .lbl{ font-size:12.5px; color:var(--ink-faint); margin-top:4px; }
+  .about-visual{
+    aspect-ratio:1/1; border-radius:18px; position:relative; overflow:hidden;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .about-visual .grid-overlay{
+    position:absolute; inset:0;
+    background-image: linear-gradient(var(--line) 1px, transparent 1px), linear-gradient(90deg, var(--line) 1px, transparent 1px);
+    background-size: 32px 32px;
+    mask-image: radial-gradient(circle at center, black 40%, transparent 75%);
+  }
+  .about-visual .core{
+    width:120px; height:120px; border-radius:20px; transform:rotate(45deg);
+    background:linear-gradient(135deg, var(--cyan), var(--blue));
+    box-shadow: 0 0 70px rgba(51,229,255,0.4);
+    animation: rotateCore 12s linear infinite;
+  }
+  @keyframes rotateCore{ from{ transform:rotate(45deg);} to{ transform:rotate(405deg);} }
+
+  /* ============================================================ FEATURES */
+  .feature-grid{
+    display:grid; grid-template-columns:repeat(3, 1fr); gap:20px;
+  }
+  @media (max-width:860px){ .feature-grid{ grid-template-columns:1fr 1fr; } }
+  @media (max-width:560px){ .feature-grid{ grid-template-columns:1fr; } }
+  .feature-card{
+    padding:30px 26px; transition: transform 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+    position:relative; overflow:hidden;
+  }
+  .feature-card:hover{ transform:translateY(-6px); border-color:var(--cyan-dim); box-shadow:0 14px 40px rgba(0,0,0,0.35); }
+  .feature-icon{
+    width:52px; height:52px; border-radius:12px; display:flex; align-items:center; justify-content:center;
+    font-size:24px; margin-bottom:18px;
+    background:rgba(51,229,255,0.08); border:1px solid var(--line-strong);
+    transition: transform 0.3s ease;
+  }
+  .feature-card:hover .feature-icon{ transform:scale(1.08) rotate(-4deg); }
+  .feature-card h4{ font-size:18px; margin-bottom:8px; }
+  .feature-card p{ font-size:14px; color:var(--ink-dim); }
+  .feature-card.heart-tint .feature-icon{ background:rgba(255,61,94,0.1); border-color:rgba(255,61,94,0.28); color:var(--heart-glow); }
+
+  /* ============================================================ RULES */
+  .rules-list{ max-width:760px; margin:0 auto; display:flex; flex-direction:column; gap:12px; }
+  .rule-row{
+    display:flex; align-items:flex-start; gap:18px; padding:18px 22px;
+    transition: border-color 0.25s ease, background 0.25s ease;
+  }
+  .rule-row:hover{ border-color:var(--cyan-dim); background:rgba(51,229,255,0.03); }
+  .rule-num{
+    font-family:'JetBrains Mono', monospace; color:var(--cyan); font-weight:600; font-size:14px;
+    width:30px; height:30px; border-radius:8px; border:1px solid var(--line-strong);
+    display:flex; align-items:center; justify-content:center; flex-shrink:0;
+  }
+  .rule-row p{ font-size:15px; color:var(--ink-dim); padding-top:4px; }
+
+  /* ============================================================ WHITELIST FORM */
+  .whitelist-shell{ max-width:680px; margin:0 auto; padding:40px; }
+  .form-grid{ display:grid; grid-template-columns:1fr 1fr; gap:18px; }
+  @media (max-width:600px){ .form-grid{ grid-template-columns:1fr; } }
+  .field{ display:flex; flex-direction:column; gap:8px; }
+  .field.full{ grid-column:1/-1; }
+  .field label{ font-size:13px; font-weight:600; color:var(--ink-dim); }
+  .field label .req{ color:var(--heart); }
+  .field input, .field textarea, .field select{
+    background:rgba(255,255,255,0.03); border:1px solid var(--line-strong);
+    border-radius:9px; padding:12px 14px; color:var(--ink); font-size:14.5px;
+    transition:border-color 0.2s ease, background 0.2s ease;
+  }
+  .field input:focus, .field textarea:focus, .field select:focus{
+    border-color:var(--cyan); background:rgba(51,229,255,0.04); outline:none;
+  }
+  .field textarea{ resize:vertical; min-height:90px; }
+  .field .err{ font-size:12px; color:var(--heart); min-height:15px; }
+  .checkbox-row{
+    display:flex; align-items:flex-start; gap:12px; padding:16px; border-radius:10px;
+    background:rgba(255,255,255,0.02); border:1px solid var(--line);
+  }
+  .checkbox-row input{ margin-top:3px; width:16px; height:16px; accent-color:var(--cyan); flex-shrink:0; }
+  .checkbox-row label{ font-size:13.5px; color:var(--ink-dim); line-height:1.5; }
+  #whitelist-form{ display:flex; flex-direction:column; gap:20px; margin-top:24px; }
+  .submit-row{ display:flex; flex-direction:column; gap:12px; }
+  #submit-btn{ width:100%; padding:16px; font-size:15px; position:relative; }
+  .spinner{
+    width:16px; height:16px; border-radius:50%;
+    border:2px solid rgba(2,21,26,0.3); border-top-color:#02151a;
+    animation:spin 0.7s linear infinite; display:none;
+  }
+  #submit-btn.loading .spinner{ display:inline-block; }
+  #submit-btn.loading .btn-label{ opacity:0.85; }
+  @keyframes spin{ to{ transform:rotate(360deg); } }
+
+  .form-msg{
+    padding:14px 18px; border-radius:10px; font-size:14px; display:none; gap:10px; align-items:flex-start;
+    line-height:1.5;
+  }
+  .form-msg.show{ display:flex; }
+  .form-msg.success{ background:rgba(55,224,138,0.08); border:1px solid rgba(55,224,138,0.3); color:#8ff0bd; }
+  .form-msg.success b{ color:#37e08a; }
+  .form-msg.error{ background:rgba(255,84,112,0.08); border:1px solid rgba(255,84,112,0.3); color:#ffb3c0; }
+  .form-msg.error b{ color:#ff5470; }
+  .form-msg.info{ background:rgba(51,229,255,0.06); border:1px solid var(--cyan-dim); color:var(--ink-dim); }
+
+  /* ============================================================ SERVER INFO */
+  .info-grid{
+    display:grid; grid-template-columns:repeat(4, 1fr); gap:16px; max-width:900px; margin:0 auto 34px;
+  }
+  @media (max-width:760px){ .info-grid{ grid-template-columns:1fr 1fr; } }
+  .info-tile{ padding:22px 20px; text-align:center; }
+  .info-tile .label{ font-size:11.5px; text-transform:uppercase; letter-spacing:0.1em; color:var(--ink-faint); margin-bottom:8px; }
+  .info-tile .value{ font-family:'Chakra Petch',sans-serif; font-weight:600; font-size:16px; color:var(--ink); }
+  .info-tile.wide{ grid-column: span 2; }
+  @media (max-width:760px){ .info-tile.wide{ grid-column: span 2; } }
+  .info-copy-wrap{ display:flex; justify-content:center; }
+
+  /* ============================================================ HOW TO JOIN */
+  .steps-row{ display:grid; grid-template-columns:repeat(3,1fr); gap:20px; max-width:900px; margin:0 auto; }
+  @media (max-width:760px){ .steps-row{ grid-template-columns:1fr; } }
+  .step-card{ padding:30px 26px; position:relative; }
+  .step-num{
+    font-family:'Chakra Petch',sans-serif; font-size:40px; font-weight:700;
+    background:linear-gradient(180deg, var(--cyan), rgba(51,229,255,0.15));
+    -webkit-background-clip:text; background-clip:text; color:transparent;
+    margin-bottom:10px; display:block;
+  }
+  .step-card h4{ font-size:17px; margin-bottom:8px; }
+  .step-card p{ font-size:14px; color:var(--ink-dim); }
+  .step-connector{
+    position:absolute; top:50%; right:-20px; width:20px; height:1px; background:var(--line-strong);
+    display:none;
+  }
+  @media (min-width:761px){ .step-card:not(:last-child) .step-connector{ display:block; } }
+
+  /* ============================================================ FOOTER */
+  footer{ position:relative; z-index:2; border-top:1px solid var(--line); padding:56px 0 32px; }
+  .footer-grid{
+    display:flex; flex-wrap:wrap; justify-content:space-between; gap:36px; margin-bottom:36px;
+  }
+  .footer-brand .brand{ margin-bottom:10px; }
+  .footer-brand p{ font-size:13.5px; color:var(--ink-faint); max-width:280px; }
+  .footer-links{ display:flex; gap:60px; flex-wrap:wrap; }
+  .footer-col h5{
+    font-size:12px; text-transform:uppercase; letter-spacing:0.12em; color:var(--ink-faint);
+    margin-bottom:14px; font-family:'JetBrains Mono', monospace; font-weight:500;
+  }
+  .footer-col a{ display:block; font-size:14px; color:var(--ink-dim); margin-bottom:10px; transition:color .2s ease; }
+  .footer-col a:hover{ color:var(--cyan); }
+  .footer-bottom{
+    border-top:1px solid var(--line); padding-top:24px;
+    display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;
+    font-size:12.5px; color:var(--ink-faint);
+  }
+
+  /* ============================================================ MISC */
+  .toast{
+    position:fixed; bottom:24px; left:50%; transform:translateX(-50%) translateY(20px);
+    background:var(--bg-3); border:1px solid var(--cyan-dim); color:var(--ink);
+    padding:12px 22px; border-radius:10px; font-size:13.5px; font-weight:500;
+    box-shadow:0 12px 40px rgba(0,0,0,0.5); z-index:100;
+    opacity:0; pointer-events:none; transition: opacity 0.3s ease, transform 0.3s ease;
+    display:flex; align-items:center; gap:8px;
+  }
+  .toast.show{ opacity:1; transform:translateX(-50%) translateY(0); }
+
+  @media (max-width:900px){
+    .nav-links{ display:none; }
+    .nav-cta .btn-primary{ display:none; }
+    #hamburger{ display:flex; }
+  }
+</style>
+</head>
+<body>
+
+<canvas id="bg-canvas"></canvas>
+<div class="grain"></div>
+
+<!-- ============================================================ NAVBAR -->
+<header id="navbar">
+  <div class="wrap nav-inner">
+    <a href="#hero" class="brand">
+      <span class="brand-mark">A</span>
+      AXOM SMP
+    </a>
+    <nav class="nav-links">
+      <a href="#hero">Home</a>
+      <a href="#about">About</a>
+      <a href="#features">Features</a>
+      <a href="#rules">Rules</a>
+      <a href="#whitelist">Whitelist</a>
+      <a href="#server-info">Server Info</a>
+    </nav>
+    <div class="nav-cta">
+      <a href="#whitelist" class="btn btn-primary">Apply for Whitelist</a>
+      <button id="hamburger" aria-label="Toggle menu" aria-expanded="false">
+        <span></span><span></span><span></span>
+      </button>
+    </div>
+  </div>
+</header>
+
+<div id="scrim"></div>
+<nav id="mobile-menu">
+  <a href="#hero">Home</a>
+  <a href="#about">About</a>
+  <a href="#features">Features</a>
+  <a href="#rules">Rules</a>
+  <a href="#whitelist">Whitelist</a>
+  <a href="#server-info">Server Info</a>
+  <a href="#whitelist" class="btn btn-primary" style="margin-top:8px;">Apply for Whitelist</a>
+</nav>
+
+<!-- ============================================================ HERO -->
+<section id="hero">
+  <div class="heart-core" aria-hidden="true">
+    <svg viewBox="0 0 100 100">
+      <path class="heart-shape" fill="var(--heart)" d="M50 88 C20 66 4 46 4 28 C4 12 16 2 30 2 C39 2 46 7 50 15 C54 7 61 2 70 2 C84 2 96 12 96 28 C96 46 80 66 50 88 Z"/>
+    </svg>
+  </div>
+
+  <div class="hero-inner">
+    <div class="eyebrow-pill glass">
+      <span class="status-dot unknown" id="hero-status-dot"></span>
+      <span id="hero-status-text">Lifesteal Survival SMP · Whitelist Required</span>
+    </div>
+
+    <h1>AXOM SMP</h1>
+    <p class="hero-tagline">Survive. <b>Fight.</b> Build. <b>Conquer.</b></p>
+
+    <div class="ip-row glass">
+      <span class="ip-text mono">axomsmp.ice.lol</span>
+      <button id="hero-copy-btn" type="button">Copy</button>
+    </div>
+
+    <div class="hero-actions">
+      <a href="#whitelist" class="btn btn-primary">Apply for Whitelist</a>
+      <button class="btn btn-ghost" id="hero-copy-btn-2" type="button">Copy Server Address</button>
+    </div>
+
+    <p class="hero-owner">Owner &amp; Hosted by <b>Aks Prasad</b></p>
+  </div>
+
+  <div class="scroll-cue"><span class="stick"></span>Scroll</div>
+</section>
+
+<!-- ============================================================ SERVER STATUS -->
+<section id="status" aria-labelledby="status-heading">
+  <div class="wrap">
+    <div class="status-card glass reveal">
+      <div class="status-card-top">
+        <h3 id="status-heading">🖥️ Server Status</h3>
+        <span class="status-badge" id="status-badge">
+          <span class="status-dot unknown" id="status-badge-dot"></span>
+          <span id="status-badge-text">Check In-Game</span>
+        </span>
+      </div>
+      <div class="status-grid">
+        <div class="status-field">
+          <div class="label">Server Address</div>
+          <div class="value">axomsmp.ice.lol</div>
+        </div>
+        <div class="status-field">
+          <div class="label">Players Online</div>
+          <div class="value" id="players-online">—</div>
+        </div>
+      </div>
+      <div style="display:flex; gap:12px; flex-wrap:wrap;">
+        <button class="btn btn-ghost" id="status-copy-btn" type="button" style="flex:1;">📋 Copy IP</button>
+      </div>
+      <p class="status-note">
+        We don't fake uptime or player counts. Open your Minecraft client and connect directly to
+        <span class="mono" style="color:var(--ink-dim);">axomsmp.ice.lol</span> to see the live status —
+        it's the most accurate source of truth.
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ ABOUT -->
+<section id="about">
+  <div class="wrap">
+    <div class="about-grid">
+      <div class="about-text reveal">
+        <span class="section-eyebrow">About the server</span>
+        <h2 style="margin-bottom:20px;">Built for players who take their survival seriously.</h2>
+        <p>
+          AXOM SMP is a Minecraft Lifesteal Survival server where every fight has a permanent cost —
+          and every victory makes you stronger. Build bases, form alliances, betray them, and carve
+          out your own story across a world shared with a close, competitive community.
+        </p>
+        <p>
+          Whether you're here to build sprawling kingdoms, hunt other players for their hearts, or
+          just survive quietly on the edge of the map, AXOM SMP gives you a persistent world worth
+          fighting for.
+        </p>
+        <div class="about-stats">
+          <div class="about-stat glass">
+            <div class="num">Lifesteal</div>
+            <div class="lbl">Core game mode</div>
+          </div>
+          <div class="about-stat glass">
+            <div class="num">Whitelisted</div>
+            <div class="lbl">Application required</div>
+          </div>
+        </div>
+      </div>
+      <div class="about-visual glass reveal">
+        <div class="grid-overlay"></div>
+        <div class="core"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ FEATURES -->
+<section id="features">
+  <div class="wrap">
+    <div class="section-head reveal">
+      <span class="section-eyebrow">What you're signing up for</span>
+      <h2>Server Features</h2>
+      <p>Every system on AXOM SMP is built around one idea: actions have permanent weight.</p>
+    </div>
+    <div class="feature-grid">
+      <div class="feature-card glass heart-tint reveal">
+        <div class="feature-icon">❤️</div>
+        <h4>Lifesteal</h4>
+        <p>Defeat other players to steal a heart of health. Lose all your hearts, lose your life on the server — permanently.</p>
+      </div>
+      <div class="feature-card glass reveal">
+        <div class="feature-icon">⚔️</div>
+        <h4>PvP</h4>
+        <p>Open-world player-vs-player combat with real stakes. Every encounter matters.</p>
+      </div>
+      <div class="feature-card glass reveal">
+        <div class="feature-icon">🌍</div>
+        <h4>Survival</h4>
+        <p>Vanilla-rooted survival mechanics — gather, craft, and adapt to a world that doesn't go easy on you.</p>
+      </div>
+      <div class="feature-card glass reveal">
+        <div class="feature-icon">🏰</div>
+        <h4>Player Builds</h4>
+        <p>Claim land, build bases and builds worth defending. Your base is your legacy on the server.</p>
+      </div>
+      <div class="feature-card glass reveal">
+        <div class="feature-icon">🎉</div>
+        <h4>Events</h4>
+        <p>Regular community events, tournaments and challenges to keep the map alive and competitive.</p>
+      </div>
+      <div class="feature-card glass reveal">
+        <div class="feature-icon">👥</div>
+        <h4>Community</h4>
+        <p>A tight, active Discord community with staff who actually play the game with you.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ RULES -->
+<section id="rules">
+  <div class="wrap">
+    <div class="section-head reveal">
+      <span class="section-eyebrow">Read before you apply</span>
+      <h2>Server Rules</h2>
+      <p>Simple rules, strictly enforced. Breaking them puts your whitelist at risk.</p>
+    </div>
+    <div class="rules-list" id="rules-list">
+      <!-- populated by JS from RULES array for easy editing -->
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ WHITELIST -->
+<section id="whitelist">
+  <div class="wrap">
+    <div class="section-head reveal">
+      <span class="section-eyebrow">Step one</span>
+      <h2>Whitelist Application</h2>
+      <p>Tell us a bit about yourself. Applications are reviewed by the AXOM SMP staff team.</p>
+    </div>
+
+    <div class="whitelist-shell glass reveal">
+      <form id="whitelist-form" novalidate>
+        <div class="form-grid">
+          <div class="field">
+            <label for="mc-username">Minecraft Username <span class="req">*</span></label>
+            <input type="text" id="mc-username" name="mc-username" placeholder="e.g. Steve123" autocomplete="off" maxlength="16" />
+            <span class="err" id="err-mc-username"></span>
+          </div>
+          <div class="field">
+            <label for="discord-username">Discord Username <span class="req">*</span></label>
+            <input type="text" id="discord-username" name="discord-username" placeholder="e.g. steve.exe" autocomplete="off" maxlength="40" />
+            <span class="err" id="err-discord-username"></span>
+          </div>
+          <div class="field">
+            <label for="age">Age <span class="req">*</span></label>
+            <input type="number" id="age" name="age" placeholder="e.g. 16" min="1" max="120" />
+            <span class="err" id="err-age"></span>
+          </div>
+          <div class="field">
+            <label for="how-found">How did you find AXOM SMP?</label>
+            <input type="text" id="how-found" name="how-found" placeholder="e.g. YouTube, a friend, Discord" maxlength="200" />
+            <span class="err" id="err-how-found"></span>
+          </div>
+          <div class="field full">
+            <label for="reason">Why do you want to join AXOM SMP? <span class="req">*</span></label>
+            <textarea id="reason" name="reason" placeholder="Tell us about your playstyle and what you're looking for..." maxlength="1000"></textarea>
+            <span class="err" id="err-reason"></span>
+          </div>
+        </div>
+
+        <div class="checkbox-row">
+          <input type="checkbox" id="agree-rules" name="agree-rules" />
+          <label for="agree-rules">I have read and agree to follow the AXOM SMP server rules. I understand that breaking them may result in removal from the server.</label>
+        </div>
+        <span class="err" id="err-agree-rules"></span>
+
+        <div class="form-msg" id="form-msg"></div>
+
+        <div class="submit-row">
+          <button type="submit" class="btn btn-primary" id="submit-btn">
+            <span class="spinner"></span>
+            <span class="btn-label">Submit Whitelist Application</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ SERVER INFO -->
+<section id="server-info">
+  <div class="wrap">
+    <div class="section-head reveal">
+      <span class="section-eyebrow">The essentials</span>
+      <h2>Server Info</h2>
+      <p>Everything you need to know about AXOM SMP at a glance.</p>
+    </div>
+    <div class="info-grid">
+      <div class="info-tile glass wide reveal">
+        <div class="label">Server Address</div>
+        <div class="value mono">axomsmp.ice.lol</div>
+      </div>
+      <div class="info-tile glass reveal">
+        <div class="label">Server Type</div>
+        <div class="value">Lifesteal Survival SMP</div>
+      </div>
+      <div class="info-tile glass reveal">
+        <div class="label">Whitelist</div>
+        <div class="value">Required</div>
+      </div>
+      <div class="info-tile glass wide reveal">
+        <div class="label">Owner &amp; Hosted by</div>
+        <div class="value">Aks Prasad</div>
+      </div>
+    </div>
+    <div class="info-copy-wrap reveal">
+      <button class="btn btn-primary" id="info-copy-btn" type="button" style="padding:15px 34px;">📋 Copy Address</button>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ HOW TO JOIN -->
+<section id="how-to-join">
+  <div class="wrap">
+    <div class="section-head reveal">
+      <span class="section-eyebrow">Three steps</span>
+      <h2>How to Join</h2>
+    </div>
+    <div class="steps-row">
+      <div class="step-card glass reveal">
+        <span class="step-num">01</span>
+        <h4>Apply</h4>
+        <p>Submit the whitelist application above with your Minecraft and Discord details.</p>
+        <div class="step-connector"></div>
+      </div>
+      <div class="step-card glass reveal">
+        <span class="step-num">02</span>
+        <h4>Wait</h4>
+        <p>Sit tight while the staff team reviews your application. We'll reach out on Discord.</p>
+        <div class="step-connector"></div>
+      </div>
+      <div class="step-card glass reveal">
+        <span class="step-num">03</span>
+        <h4>Join</h4>
+        <p>Once approved, launch Minecraft and connect to <span class="mono">axomsmp.ice.lol</span>.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ FOOTER -->
+<footer>
+  <div class="wrap">
+    <div class="footer-grid">
+      <div class="footer-brand">
+        <a href="#hero" class="brand"><span class="brand-mark">A</span>AXOM SMP</a>
+        <p>axomsmp.ice.lol — a Lifesteal Survival SMP. Owner &amp; Hosted by Aks Prasad.</p>
+      </div>
+      <div class="footer-links">
+        <div class="footer-col">
+          <h5>Navigate</h5>
+          <a href="#hero">Home</a>
+          <a href="#about">About</a>
+          <a href="#features">Features</a>
+        </div>
+        <div class="footer-col">
+          <h5>Server</h5>
+          <a href="#rules">Rules</a>
+          <a href="#whitelist">Whitelist</a>
+          <a href="#server-info">Server Info</a>
+        </div>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <span>© 2026 AXOM SMP. All rights reserved.</span>
+      <span class="mono">axomsmp.ice.lol</span>
+    </div>
+  </div>
+</footer>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ============================================================
+     EDITABLE CONTENT — change these to update the site
+     ============================================================ */
+  const SERVER_IP = "axomsmp.ice.lol";
+
+  const RULES = [
+    "No cheating or hacked clients.",
+    "No exploiting bugs.",
+    "Respect other players.",
+    "No inappropriate behavior.",
+    "Do not intentionally crash or damage the server.",
+    "Follow staff instructions.",
+    "Have fun."
+  ];
+
+  /* ============================================================
+     SUPABASE CONFIG
+     Paste your project's URL + Publishable (anon) key here, or set
+     them as build-time env vars and inject them into these two
+     constants before deploying. NEVER put a service-role/secret key
+     here — this file ships to every visitor's browser.
+     ============================================================ */
+  const SUPABASE_URL = "YOUR_SUPABASE_URL";
+  const SUPABASE_PUBLISHABLE_KEY = "YOUR_SUPABASE_PUBLISHABLE_KEY";
+
+  let supabase = null;
+  try{
+    if (window.supabase && SUPABASE_URL.startsWith("http")){
+      supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
+    }
+  }catch(e){ console.warn("Supabase not configured yet:", e); }
+
+  /* ---------------- render rules ---------------- */
+  const rulesList = document.getElementById("rules-list");
+  RULES.forEach((rule, i) => {
+    const row = document.createElement("div");
+    row.className = "rule-row glass reveal";
+    row.innerHTML = `<span class="rule-num">${String(i+1).padStart(2,"0")}</span><p>${rule}</p>`;
+    rulesList.appendChild(row);
+  });
+
+  /* ---------------- navbar scroll state ---------------- */
+  const navbar = document.getElementById("navbar");
+  window.addEventListener("scroll", () => {
+    navbar.classList.toggle("scrolled", window.scrollY > 30);
+  }, { passive:true });
+
+  /* ---------------- mobile menu ---------------- */
+  const hamburger = document.getElementById("hamburger");
+  const mobileMenu = document.getElementById("mobile-menu");
+  const scrim = document.getElementById("scrim");
+  function closeMenu(){
+    hamburger.classList.remove("open");
+    hamburger.setAttribute("aria-expanded","false");
+    mobileMenu.classList.remove("open");
+    scrim.classList.remove("open");
+  }
+  hamburger.addEventListener("click", () => {
+    const willOpen = !mobileMenu.classList.contains("open");
+    hamburger.classList.toggle("open", willOpen);
+    hamburger.setAttribute("aria-expanded", String(willOpen));
+    mobileMenu.classList.toggle("open", willOpen);
+    scrim.classList.toggle("open", willOpen);
+  });
+  scrim.addEventListener("click", closeMenu);
+  mobileMenu.querySelectorAll("a").forEach(a => a.addEventListener("click", closeMenu));
+
+  /* ---------------- scroll reveal ---------------- */
+  const revealEls = document.querySelectorAll(".reveal");
+  if ("IntersectionObserver" in window){
+    const io = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting){
+          entry.target.classList.add("in");
+          io.unobserve(entry.target);
+        }
+      });
+    }, { threshold: 0.12, rootMargin: "0px 0px -60px 0px" });
+    revealEls.forEach(el => io.observe(el));
+  } else {
+    revealEls.forEach(el => el.classList.add("in"));
+  }
+
+  /* ---------------- toast ---------------- */
+  let toastTimer = null;
+  function showToast(msg){
+    const toast = document.getElementById("toast");
+    toast.textContent = msg;
+    toast.classList.add("show");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => toast.classList.remove("show"), 2200);
+  }
+
+  /* ---------------- copy IP everywhere ---------------- */
+  async function copyIP(btn){
+    const original = btn.textContent;
+    try{
+      await navigator.clipboard.writeText(SERVER_IP);
+    }catch(e){
+      // fallback for older browsers / non-secure contexts
+      const ta = document.createElement("textarea");
+      ta.value = SERVER_IP;
+      ta.style.position = "fixed";
+      ta.style.opacity = "0";
+      document.body.appendChild(ta);
+      ta.select();
+      try{ document.execCommand("copy"); }catch(err){}
+      document.body.removeChild(ta);
+    }
+    btn.textContent = "Copied!";
+    showToast("Server address copied: " + SERVER_IP);
+    setTimeout(() => { btn.textContent = original; }, 1600);
+  }
+  [
+    "hero-copy-btn", "hero-copy-btn-2", "status-copy-btn", "info-copy-btn"
+  ].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener("click", () => copyIP(el));
+  });
+
+  /* ---------------- background particle canvas ---------------- */
+  const canvas = document.getElementById("bg-canvas");
+  const ctx = canvas.getContext("2d");
+  let particles = [];
+  let animId = null;
+  const reduceMotion = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  function resizeCanvas(){
+    canvas.width = window.innerWidth * window.devicePixelRatio;
+    canvas.height = window.innerHeight * window.devicePixelRatio;
+    canvas.style.width = window.innerWidth + "px";
+    canvas.style.height = window.innerHeight + "px";
+    ctx.setTransform(window.devicePixelRatio, 0, 0, window.devicePixelRatio, 0, 0);
+  }
+
+  function initParticles(){
+    const count = Math.min(70, Math.floor((window.innerWidth * window.innerHeight) / 22000));
+    particles = Array.from({ length: count }, () => ({
+      x: Math.random() * window.innerWidth,
+      y: Math.random() * window.innerHeight,
+      r: Math.random() * 1.6 + 0.4,
+      vx: (Math.random() - 0.5) * 0.12,
+      vy: (Math.random() - 0.5) * 0.12,
+      hue: Math.random() > 0.82 ? "heart" : "cyan",
+      alpha: Math.random() * 0.5 + 0.15
+    }));
+  }
+
+  function drawParticles(){
+    ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
+    particles.forEach(p => {
+      p.x += p.vx; p.y += p.vy;
+      if (p.x < -10) p.x = window.innerWidth + 10;
+      if (p.x > window.innerWidth + 10) p.x = -10;
+      if (p.y < -10) p.y = window.innerHeight + 10;
+      if (p.y > window.innerHeight + 10) p.y = -10;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+      ctx.fillStyle = p.hue === "heart"
+        ? `rgba(255,61,94,${p.alpha})`
+        : `rgba(51,229,255,${p.alpha})`;
+      ctx.fill();
+    });
+    animId = requestAnimationFrame(drawParticles);
+  }
+
+  resizeCanvas();
+  initParticles();
+  if (!reduceMotion){
+    drawParticles();
+  } else {
+    // static single frame for reduced motion
+    ctx.clearRect(0,0,window.innerWidth, window.innerHeight);
+    particles.forEach(p => {
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.r, 0, Math.PI*2);
+      ctx.fillStyle = p.hue === "heart" ? `rgba(255,61,94,${p.alpha})` : `rgba(51,229,255,${p.alpha})`;
+      ctx.fill();
+    });
+  }
+
+  let resizeTimer = null;
+  window.addEventListener("resize", () => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(() => {
+      resizeCanvas();
+      initParticles();
+    }, 200);
+  });
+
+  /* ============================================================
+     SERVER STATUS
+     We do NOT fabricate an online status or player count. Without a
+     configured status API this simply shows a neutral, honest state.
+     If you wire up a Minecraft server-status API, set the value in
+     applyStatus() accordingly.
+     ============================================================ */
+  function applyStatus(state, playersText){
+    // state: "online" | "offline" | "unknown"
+    const dots = [
+      document.getElementById("hero-status-dot"),
+      document.getElementById("status-badge-dot")
+    ];
+    const heroText = document.getElementById("hero-status-text");
+    const badgeText = document.getElementById("status-badge-text");
+    const playersEl = document.getElementById("players-online");
+
+    dots.forEach(d => { d.classList.remove("online","offline","unknown"); d.classList.add(state); });
+
+    if (state === "online"){
+      heroText.textContent = "Server Online · Whitelist Required";
+      badgeText.textContent = "Online";
+    } else if (state === "offline"){
+      heroText.textContent = "Server Offline · Whitelist Required";
+      badgeText.textContent = "Offline";
+    } else {
+      heroText.textContent = "Lifesteal Survival SMP · Whitelist Required";
+      badgeText.textContent = "Check In-Game";
+    }
+    playersEl.textContent = playersText || "—";
+  }
+  // Neutral by default — no invented status or player count.
+  applyStatus("unknown", "Check In-Game");
+
+  /* ============================================================
+     WHITELIST FORM
+     ============================================================ */
+  const form = document.getElementById("whitelist-form");
+  const submitBtn = document.getElementById("submit-btn");
+  const formMsg = document.getElementById("form-msg");
+
+  const fields = {
+    mcUsername: document.getElementById("mc-username"),
+    discordUsername: document.getElementById("discord-username"),
+    age: document.getElementById("age"),
+    howFound: document.getElementById("how-found"),
+    reason: document.getElementById("reason"),
+    agreeRules: document.getElementById("agree-rules")
+  };
+  const errs = {
+    mcUsername: document.getElementById("err-mc-username"),
+    discordUsername: document.getElementById("err-discord-username"),
+    age: document.getElementById("err-age"),
+    howFound: document.getElementById("err-how-found"),
+    reason: document.getElementById("err-reason"),
+    agreeRules: document.getElementById("err-agree-rules")
+  };
+
+  function clearErrors(){
+    Object.values(errs).forEach(e => e.textContent = "");
+  }
+
+  function setMsg(type, html){
+    formMsg.className = "form-msg show " + type;
+    formMsg.innerHTML = html;
+  }
+  function hideMsg(){
+    formMsg.className = "form-msg";
+    formMsg.innerHTML = "";
+  }
+
+  const MC_USERNAME_RE = /^[A-Za-z0-9_]{3,16}$/;
+
+  function validate(){
+    clearErrors();
+    let valid = true;
+
+    const mc = fields.mcUsername.value.trim();
+    if (!mc){
+      errs.mcUsername.textContent = "Minecraft username is required.";
+      valid = false;
+    } else if (!MC_USERNAME_RE.test(mc)){
+      errs.mcUsername.textContent = "3–16 characters: letters, numbers, underscores only.";
+      valid = false;
+    }
+
+    const discord = fields.discordUsername.value.trim();
+    if (!discord){
+      errs.discordUsername.textContent = "Discord username is required.";
+      valid = false;
+    }
+
+    const age = fields.age.value.trim();
+    const ageNum = Number(age);
+    if (!age){
+      errs.age.textContent = "Age is required.";
+      valid = false;
+    } else if (!Number.isFinite(ageNum) || ageNum < 1 || ageNum > 120){
+      errs.age.textContent = "Enter a valid age.";
+      valid = false;
+    }
+
+    const reason = fields.reason.value.trim();
+    if (!reason){
+      errs.reason.textContent = "Tell us why you want to join.";
+      valid = false;
+    } else if (reason.length < 10){
+      errs.reason.textContent = "Please give a bit more detail (10+ characters).";
+      valid = false;
+    }
+
+    if (!fields.agreeRules.checked){
+      errs.agreeRules.textContent = "You must agree to the server rules to apply.";
+      valid = false;
+    }
+
+    return valid;
+  }
+
+  let submitting = false;
+
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    hideMsg();
+
+    if (submitting) return; // guard against double-submit
+    if (!validate()) return;
+
+    if (!supabase){
+      setMsg("error", "<b>Whitelist form isn't connected yet.</b> Add your Supabase URL and publishable key in the script near the top of this file to enable submissions.");
+      return;
+    }
+
+    submitting = true;
+    submitBtn.classList.add("loading");
+    submitBtn.setAttribute("disabled", "true");
+
+    const payload = {
+      minecraft_username: fields.mcUsername.value.trim(),
+      discord_username: fields.discordUsername.value.trim(),
+      age: Number(fields.age.value.trim()),
+      reason: fields.reason.value.trim(),
+      how_found: fields.howFound.value.trim() || null,
+      status: "pending"
+    };
+
+    try{
+      const { error } = await supabase.from("whitelist_applications").insert([payload]);
+      if (error) throw error;
+
+      setMsg("success", "<b>Application Submitted!</b><br>Your AXOM SMP whitelist application has been received.<br><b>Status: Pending Review</b>");
+      form.reset();
+      showToast("Application submitted — status: pending review");
+    }catch(err){
+      console.error("Whitelist submission failed:", err);
+      const friendly = (err && err.message) ? err.message : "Something went wrong submitting your application.";
+      setMsg("error", `<b>Submission failed.</b> ${friendly}. Please try again in a moment.`);
+    }finally{
+      submitting = false;
+      submitBtn.classList.remove("loading");
+      submitBtn.removeAttribute("disabled");
+    }
+  });
+
+})();
+</script>
+</body>
+</html>
